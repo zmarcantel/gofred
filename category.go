@@ -41,7 +41,7 @@ type CategoryResponse struct {
 //
 // Asserts there is only one `Category` object in the result, and returns it.
 //
-func (c Client) Category(category uint32) (Category, error) {
+func (c Client) Category(category uint32) (Category, Error) {
 	cat_req := CategoryRequest{
 		BaseRequest: c.base_req,
 		category:    category,
@@ -53,24 +53,30 @@ func (c Client) Category(category uint32) (Category, error) {
 
 	body, err := c.get("category", req_url.String())
 	if err != nil {
-		return Category{}, fmt.Errorf("error getting category %d: %v", category, err)
+		return Category{}, err.Prefixf("error getting category %d: %v", category, err)
 	}
 
 	// parse the correct format
 	var result CategoryResponse
-	err = c.unmarshal_body(body, &result)
-	if err != nil {
-		return Category{}, fmt.Errorf("could not get category %d: %v", category, err)
+	parse_err := c.unmarshal_body(body, &result)
+	if parse_err != nil {
+		return Category{}, err.Prefixf("could not get category %d: %v", category, err)
 	}
 
 	// pull out the singular category
 	switch len(result.Categories) {
 	case 0:
-		return Category{}, fmt.Errorf("received an empty category list")
+		return Category{}, &APIError{
+			ty:  UnexpectedCount,
+			msg: fmt.Sprintf("received an empty category list"),
+		}
 	case 1:
 		return result.Categories[0], nil
 	default:
-		return Category{}, fmt.Errorf("expected only a single category, received %d", len(result.Categories))
+		return Category{}, &APIError{
+			ty:  UnexpectedCount,
+			msg: fmt.Sprintf("expected only a single category, received %d", len(result.Categories)),
+		}
 	}
 }
 
@@ -107,7 +113,7 @@ type CategoryChildrenResponse struct {
 //
 // Get the `Category` information for the children of the given category.
 //
-func (c Client) CategoryChildren(category uint32, start, end time.Time) ([]Category, error) {
+func (c Client) CategoryChildren(category uint32, start, end time.Time) ([]Category, Error) {
 	cat_req := CategoryChildrenRequest{
 		BaseRequest: c.base_req,
 		category:    category,
@@ -121,7 +127,7 @@ func (c Client) CategoryChildren(category uint32, start, end time.Time) ([]Categ
 
 	body, err := c.get("category children", req_url.String())
 	if err != nil {
-		return nil, fmt.Errorf("error getting category %d: %v", category, err)
+		return nil, err.Prefixf("error getting category %d: %v", category)
 	}
 
 	var result CategoryChildrenResponse
@@ -163,7 +169,7 @@ type CategoryRelatedResponse struct {
 //
 // Get the `Category` information for the categories related to the given category.
 //
-func (c Client) RelatedCategories(category uint32, start, end time.Time) ([]Category, error) {
+func (c Client) RelatedCategories(category uint32, start, end time.Time) ([]Category, Error) {
 	cat_req := CategoryRelatedRequest{
 		BaseRequest: c.base_req,
 		category:    category,
@@ -177,7 +183,7 @@ func (c Client) RelatedCategories(category uint32, start, end time.Time) ([]Cate
 
 	body, err := c.get("related categories", req_url.String())
 	if err != nil {
-		return nil, fmt.Errorf("error getting categories related to %d: %v", category, err)
+		return nil, err.Prefixf("error getting categories related to %d", category)
 	}
 
 	var result CategoryRelatedResponse

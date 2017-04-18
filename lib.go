@@ -68,8 +68,44 @@ func (r BaseRequest) ToParams() url.Values {
 }
 
 //==============================================================================
-// responses
+// responses and errors
 //==============================================================================
+
+type ErrorType uint32
+
+const (
+	ParseError            ErrorType = 0 // internal errors
+	HTTPError             ErrorType = 1
+	ReadError             ErrorType = 2
+	UnexpectedCount       ErrorType = 3
+	UnknownResponseFormat ErrorType = 4
+	NotFound              ErrorType = 404 // HTTP errors
+	Invalid               ErrorType = 400
+	UnknownError          ErrorType = 999 // misc
+)
+
+type Error interface {
+	error
+	Type() ErrorType
+	Prefix(string) Error
+	Prefixf(string, ...interface{}) Error
+}
+
+type APIError struct {
+	ty  ErrorType
+	msg string
+}
+
+func (e *APIError) Error() string   { return e.msg }
+func (e *APIError) Type() ErrorType { return e.ty }
+func (e *APIError) Prefix(p string) Error {
+	e.msg = fmt.Sprintf("%s %v", p, e.msg)
+	return e
+}
+func (e *APIError) Prefixf(f string, args ...interface{}) Error {
+	e.msg = fmt.Sprintf("%s %v", fmt.Sprintf(f, args...), e.msg)
+	return e
+}
 
 // Generic error response type.
 //
@@ -110,41 +146,59 @@ func NewClient(key string, format ResponseFormat) (Client, error) {
 
 // Unmarshals the byte slice into the target interface based on the internal
 // response format given when the client was created.
-func (c Client) unmarshal_body(body []byte, into interface{}) error {
+func (c Client) unmarshal_body(body []byte, into interface{}) Error {
 	switch c.base_req.fmt {
 	case JSON:
 		err := json.Unmarshal(body, into)
 		if err != nil {
-			return fmt.Errorf("failed to parse json response: %v", err)
+			return &APIError{
+				ty:  ParseError,
+				msg: fmt.Sprintf("failed to parse json response: %v", err),
+			}
 		}
 	case XML:
 		err := xml.Unmarshal(body, into)
 		if err != nil {
-			return fmt.Errorf("failed to parse xml response: %v", err)
+			return &APIError{
+				ty:  ParseError,
+				msg: fmt.Sprintf("failed to parse xml response: %v", err),
+			}
 		}
 	default:
-		return fmt.Errorf("unknown request/response type: %v", c.base_req.fmt)
+		return &APIError{
+			ty:  UnknownResponseFormat,
+			msg: fmt.Sprintf("unknown request/response type: %v", c.base_req.fmt),
+		}
 	}
 
 	return nil
 }
 
 // Parses the byte slice as a `BaseError` depending on the response format.
-func (c Client) get_error(body []byte) (BaseError, error) {
+func (c Client) get_error(body []byte) (BaseError, Error) {
 	var result BaseError
 	switch c.base_req.fmt {
 	case JSON:
 		err := json.Unmarshal(body, &result)
 		if err != nil {
-			return BaseError{}, fmt.Errorf("failed to parse json error response: %v", err)
+			return BaseError{}, &APIError{
+				ty:  ParseError,
+				msg: fmt.Sprintf("failed to parse json error response: %v", err),
+			}
 		}
 	case XML:
 		err := xml.Unmarshal(body, &result)
 		if err != nil {
-			return BaseError{}, fmt.Errorf("failed to parse xml error response: %v", err)
+			return BaseError{}, &APIError{
+				ty:  ParseError,
+				msg: fmt.Sprintf("failed to parse xml error response: %v", err),
+			}
 		}
 	default:
-		return BaseError{}, fmt.Errorf("unknown request/response type: %v", c.base_req.fmt)
+		return BaseError{}, &APIError{
+			ty:  UnknownResponseFormat,
+			msg: fmt.Sprintf("unknown request/response type: %v", c.base_req.fmt),
+		}
 	}
 
 	return result, nil
@@ -152,30 +206,57 @@ func (c Client) get_error(body []byte) (BaseError, error) {
 
 // Wrapper around `http.Get()` which checks status codes and proxies back either a
 // valid response or a parsed/generated error.
-func (c Client) get(desc, req_url string) ([]byte, error) {
+func (c Client) get(desc, req_url string) ([]byte, Error) {
 	res, err := http.Get(req_url)
 	if err != nil {
-		return nil, err
+		return nil, &APIError{ty: HTTPError, msg: err.Error()}
 	}
 
 	defer res.Body.Close()
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return nil, &APIError{ty: ReadError, msg: err.Error()}
+	}
+
+	// we need this a few times
+	failed_to_parse := &APIError{
+		ty:  ParseError,
+		msg: fmt.Sprintf("failed to parse %s error response: %v", desc, err),
 	}
 
 	// catch early errors
 	switch res.StatusCode {
 	case 200:
 		// do nothing
+
+	// not found (endpoint, seems to not be returned by API)
 	case 404:
-		return nil, fmt.Errorf("could not find %s: %d", desc, res.StatusCode)
+		return nil, &APIError{
+			ty:  NotFound,
+			msg: fmt.Sprintf("could not find %s: %d", desc, res.StatusCode),
+		}
+
+	// invalid request
+	case 400:
+		req_err, err := c.get_error(body)
+		if err != nil {
+			return nil, failed_to_parse
+		}
+		return nil, &APIError{
+			ty:  Invalid,
+			msg: fmt.Sprintf("invalid %s request: %s", desc, req_err.Message),
+		}
+
+	// anything else
 	default:
 		req_err, err := c.get_error(body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse %s error response: %v", desc, err)
+			return nil, failed_to_parse
 		}
-		return nil, fmt.Errorf("could not get %s (%d): %v", desc, req_err.Code, req_err.Message)
+		return nil, &APIError{
+			ty:  UnknownError,
+			msg: fmt.Sprintf("could not get %s (%d): %v", desc, req_err.Code, req_err.Message),
+		}
 	}
 
 	return body, nil

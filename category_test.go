@@ -47,7 +47,10 @@ func TestCategory_Nonexistant(t *testing.T) {
 	client := make_client(t)
 	cat, err := client.Category(999999) // as of writing, this returns a 400 response
 	if err == nil {
-		t.Errorf("expected an error response, got: %+v", cat)
+		t.Fatalf("expected an error response, got: %+v", cat)
+	}
+	if err.Type() != Invalid {
+		t.Errorf("expected type:", Invalid, ", got:", err.Type())
 	}
 }
 
