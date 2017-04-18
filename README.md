@@ -1,4 +1,4 @@
-gofred
+gofred [![Build Status](https://travis-ci.org/zmarcantel/gofred.svg?branch=master)](https://travis-ci.org/zmarcantel/gofred)
 ======
 
 example
