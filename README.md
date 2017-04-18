@@ -28,7 +28,7 @@ To get information about a category's children (if any):
 
 ```go
 // 13 = U.S. Trade & International Transactions
-category, err := client.CategoryChildren(13)
+category, err := client.CategoryChildren(13, time.Unix(0, 0), time.Now())
 ```
 
 #### related
@@ -37,7 +37,7 @@ To get information about all categories (if any) related to a given category:
 
 ```go
 // 32073 = States in the St. Louis FED District
-category, err := client.RelatedCategories(32073)
+category, err := client.RelatedCategories(32073, time.Unix(0, 0), time.Now())
 ```
 
 
