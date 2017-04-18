@@ -1,0 +1,15 @@
+sudo: false
+language: go
+
+
+go:
+    - 1.x
+    - master
+
+
+before_install:
+    - openssl aes-256-cbc -K $encrypted_9ef8bed50dde_key -iv $encrypted_9ef8bed50dde_iv -in private.go.enc -out private.go -d
+
+
+script:
+    - go test -v
