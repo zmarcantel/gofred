@@ -94,14 +94,14 @@ func TestCategoryChildren_TradeBalance(t *testing.T) {
 //
 //==============================================================================
 
-func TestCategoryRelated_TradeBalance(t *testing.T) {
+func TestCategoryRelated_Districts(t *testing.T) {
 	client := make_client(t)
 	related, err := client.RelatedCategories(CATEGORY_STLOUIS_DISTRICT_STATES, time.Unix(0, 0), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expect_map := map[uint32]Category{
+	expect_map := map[uint]Category{
 		149: Category{Id: 149, Name: "Arkansas", ParentId: 27281},
 		150: Category{Id: 150, Name: "Illinois", ParentId: 27281},
 		151: Category{Id: 151, Name: "Indiana", ParentId: 27281},
@@ -132,5 +132,143 @@ func TestCategoryRelated_TradeBalance(t *testing.T) {
 
 	if found != len(expect_map) {
 		t.Errorf("expected to find all %d states, found: %d", len(expect_map), found)
+	}
+}
+
+//==============================================================================
+//
+// GET: /fred/category/series
+//
+//==============================================================================
+
+func TestCategorySeries_TradeBalance(t *testing.T) {
+	client := make_client(t)
+
+	limit := 15
+	start_date := time.Date(1990, time.January, 1, 0, 0, 0, 0, time.UTC)
+	end_date := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+	req := NewCategorySeriesRequest(CATEGORY_TRADE_BALANCE)
+	req.DatedRequest.Start = Date(start_date)
+	req.DatedRequest.End = Date(end_date)
+	req.OrderedRequest.Order = OrderTitle
+	req.OrderedRequest.Sort = SortAscending
+	req.PagedRequest.Limit = uint(limit)
+
+	series, err := client.SeriesInCategory(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(series.Series) != limit {
+		t.Errorf("did not limit reques to %d entries, got: %d", limit, len(series.Series))
+	}
+
+	if series.Start != Date(start_date) {
+		t.Errorf("expected %v, got %v", start_date, time.Time(series.Start))
+	}
+
+	if series.End != Date(end_date) {
+		t.Errorf("expected %v, got %v", end_date, time.Time(series.End))
+	}
+
+	last := ""
+	for _, s := range series.Series {
+		if len(last) > 0 && s.Title < last {
+			t.Errorf("expected sorted by title, got '%s' after '%s'", s, last)
+		}
+		last = s.Title
+	}
+}
+
+//==============================================================================
+//
+// GET: /fred/category/tags
+//
+//==============================================================================
+
+func TestCategoryTags_TradeBalance(t *testing.T) {
+	client := make_client(t)
+
+	limit := 15
+	start_date := time.Date(1990, time.January, 1, 0, 0, 0, 0, time.UTC)
+	end_date := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+	req := NewCategoryTagsRequest(CATEGORY_TRADE_BALANCE, TagNone, "")
+	req.DatedRequest.Start = Date(start_date)
+	req.DatedRequest.End = Date(end_date)
+	req.OrderedRequest.Order = OrderName
+	req.OrderedRequest.Sort = SortAscending
+	req.PagedRequest.Limit = uint(limit)
+
+	res, err := client.CategoryTags(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Tags) != limit {
+		t.Errorf("did not limit reques to %d entries, got: %d", limit, len(res.Tags))
+	}
+
+	if res.Start != Date(start_date) {
+		t.Errorf("expected %v, got %v", start_date, time.Time(res.Start))
+	}
+
+	if res.End != Date(end_date) {
+		t.Errorf("expected %v, got %v", end_date, time.Time(res.End))
+	}
+
+	last := ""
+	for _, tag := range res.Tags {
+		if len(last) > 0 && tag.Name < last {
+			t.Errorf("expected sorted by Name, got '%s' after '%s'", tag.Name, last)
+		}
+		last = tag.Name
+	}
+}
+
+//==============================================================================
+//
+// GET: /fred/category/related_tags
+//
+//==============================================================================
+
+func TestCategoryRelatedTags_TradeBalance(t *testing.T) {
+	client := make_client(t)
+
+	limit := 5
+	start_date := time.Date(1990, time.January, 1, 0, 0, 0, 0, time.UTC)
+	end_date := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+	req := NewCategoryRelatedTagsRequest(CATEGORY_TRADE_BALANCE, "services", "quarterly")
+	req.DatedRequest.Start = Date(start_date)
+	req.DatedRequest.End = Date(end_date)
+	req.OrderedRequest.Order = OrderName
+	req.OrderedRequest.Sort = SortAscending
+	req.PagedRequest.Limit = uint(limit)
+
+	res, err := client.CategoryRelatedTags(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Tags) != limit {
+		t.Errorf("did not limit reques to %d entries, got: %d", limit, len(res.Tags))
+	}
+
+	if res.Start != Date(start_date) {
+		t.Errorf("expected %v, got %v", start_date, time.Time(res.Start))
+	}
+
+	if res.End != Date(end_date) {
+		t.Errorf("expected %v, got %v", end_date, time.Time(res.End))
+	}
+
+	last := ""
+	for _, tag := range res.Tags {
+		if len(last) > 0 && tag.Name < last {
+			t.Errorf("expected sorted by Name, got '%s' after '%s'", tag.Name, last)
+		}
+		last = tag.Name
 	}
 }

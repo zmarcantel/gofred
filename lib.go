@@ -7,11 +7,16 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 )
 
 const (
 	// Base API endpoint URL all requests go through
 	API_URL = "https://api.stlouisfed.org/fred"
+
+	DATE_FORMAT = "2006-01-02"
+	TIME_FORMAT = "2006-01-02 15:04:05-07"
 )
 
 //==============================================================================
@@ -44,33 +49,493 @@ func (f ResponseFormat) String() string {
 // requests
 //==============================================================================
 
+type ApiKey string
+
+func (k ApiKey) String() string {
+	return "REDACTED"
+}
+
 // Interface to a generic request to the Fred API.
 type Request interface {
 	ToParams() url.Values
+	MergeParams(url.Values)
 }
 
 // Minimal shared request objects.
 //
-// A `BaseRequest` object is held in the client and copied for every request
+// A `baseRequest` object is held in the client and copied for every request
 // generated through the library. Once copied, the request-specific parameters
 // are filled in.
-type BaseRequest struct {
+type baseRequest struct {
 	fmt     ResponseFormat
-	api_key string
+	api_key ApiKey
 }
 
 // Satisfies the `Request` interface, generating a `url.Values` set with the API key and format.
-func (r BaseRequest) ToParams() url.Values {
+func (r baseRequest) ToParams() url.Values {
 	v := url.Values{}
-	v.Set("api_key", r.api_key)
-	v.Set("file_type", r.fmt.String())
+	r.MergeParams(v)
 	return v
 }
 
+func (r baseRequest) MergeParams(v url.Values) {
+	v.Set("api_key", string(r.api_key))
+	v.Set("file_type", r.fmt.String())
+}
+
+type DatedRequest struct {
+	Start Date `json:"realtime_start" xml:"realtime_start"`
+	End   Date `json:"realtime_end" xml:"realtime_end"`
+}
+
+func (r DatedRequest) ToParams() url.Values {
+	v := url.Values{}
+	r.MergeParams(v)
+	return v
+}
+
+func (r DatedRequest) MergeParams(v url.Values) {
+	if time.Time(r.Start).IsZero() == false {
+		v.Set("realtime_start", time.Time(r.Start).Format(DATE_FORMAT))
+	}
+	if time.Time(r.End).IsZero() == false {
+		v.Set("realtime_end", time.Time(r.End).Format(DATE_FORMAT))
+	}
+}
+
+// Embedded struct for requests with offset/limit params
+type PagedRequest struct {
+	Limit  uint // 1 - 1000
+	Offset uint // 0 - 999
+}
+
+func (r PagedRequest) ToParams() url.Values {
+	v := url.Values{}
+	r.MergeParams(v)
+	return v
+}
+
+func (r PagedRequest) MergeParams(v url.Values) {
+	if r.Limit > 0 {
+		adj := r.Limit % 1000 // limit is max 1000
+		if adj == 0 {
+			adj = 1
+		}
+		v.Set("limit", fmt.Sprint(adj))
+	}
+	if r.Offset > 0 {
+		v.Set("offset", fmt.Sprint(r.Offset%999)) // max offset = max limit - 1
+	}
+}
+
+// Embedded struct for requests with order params
+type OrderedRequest struct {
+	Order OrderType
+	Sort  SortType
+}
+
+func (r OrderedRequest) ToParams() url.Values {
+	v := url.Values{}
+	r.MergeParams(v)
+	return v
+}
+
+func (r OrderedRequest) MergeParams(v url.Values) {
+	if len(r.Order) > 0 {
+		v.Set("order_by", fmt.Sprint(r.Order))
+	}
+	if len(r.Sort) > 0 {
+		v.Set("sort_order", fmt.Sprint(r.Sort))
+	}
+}
+
+// Embedded struct for requests with filter params
+type FilteredRequest struct {
+	Variable FilterType
+	Value    string // TODO: ToString interface exist?
+}
+
+func (r FilteredRequest) ToParams() url.Values {
+	v := url.Values{}
+	r.MergeParams(v)
+	return v
+}
+
+func (r FilteredRequest) MergeParams(v url.Values) {
+	if len(r.Variable) > 0 {
+		v.Set("filter_variable", string(r.Variable))
+	}
+	if len(r.Value) > 0 {
+		v.Set("filter_value", r.Value)
+	}
+}
+
+// Embedded struct for requests with tag params
+type TaggedRequest struct {
+	Tags    []string
+	Exclude []string
+}
+
+func (r TaggedRequest) ToParams() url.Values {
+	v := url.Values{}
+	r.MergeParams(v)
+	return v
+}
+
+func (r TaggedRequest) MergeParams(v url.Values) {
+	if len(r.Tags) > 0 {
+		v.Set("tag_names", strings.Join(r.Tags, ";"))
+	}
+	if len(r.Exclude) > 0 {
+		v.Set("exclude_tag_name", strings.Join(r.Exclude, ";"))
+	}
+}
+
 //==============================================================================
-// responses and errors
+// API internal types
 //==============================================================================
 
+type SeasonalAdjustment bool
+
+const (
+	Adjusted   SeasonalAdjustment = true
+	Unadjusted SeasonalAdjustment = false
+)
+
+func (a *SeasonalAdjustment) UnmarshalJSON(input []byte) error {
+	var as_str string
+	if err := json.Unmarshal(input, &as_str); err != nil {
+		return err
+	}
+
+	if as_str == "Not Seasonally Adjusted" {
+		*a = Unadjusted
+	} else if as_str == "Seasonally Adjusted" {
+		*a = Adjusted
+	} else {
+		return fmt.Errorf("unexpected value for seasonal adjustment: %s", as_str)
+	}
+
+	return nil
+}
+
+func (a SeasonalAdjustment) MarshalJSON() ([]byte, error) {
+	if a {
+		return []byte("\"Seasonally Adjusted\""), nil
+	}
+
+	return []byte("\"Not Seasonally Adjusted\""), nil
+}
+
+type Date time.Time
+
+func (d *Date) UnmarshalJSON(input []byte) error {
+	var as_str string
+	err := json.Unmarshal(input, &as_str)
+	if err != nil {
+		return err
+	}
+
+	as_time, err := time.Parse(DATE_FORMAT, as_str)
+	*d = Date(as_time)
+	return err
+}
+
+func (d Date) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Time(d).Format(DATE_FORMAT))
+}
+
+type DateTime time.Time
+
+func (d *DateTime) UnmarshalJSON(input []byte) error {
+	var as_str string
+	if err := json.Unmarshal(input, &as_str); err != nil {
+		return err
+	}
+
+	as_time, err := time.Parse(TIME_FORMAT, as_str)
+	*d = DateTime(as_time)
+	return err
+}
+
+func (d DateTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Time(d).Format(TIME_FORMAT))
+}
+
+type Frequency uint8
+
+const (
+	Daily = iota
+	Weekly
+	Biweekly
+	Monthly
+	Quarterly
+	Semiannual
+	Annual
+
+	WeeklyEndingFriday
+	WeeklyEndingThursday
+	WeeklyEndingWednesday
+	WeeklyEndingTuesday
+	WeeklyEndingMonday
+	WeeklyEndingSunday
+	WeeklyEndingSaturday
+	BiweeklyEndingWednesday
+	BiweeklyEndingMonday
+
+	UnknownFrequency
+)
+
+func (f *Frequency) UnmarshalJSON(input []byte) error {
+	*f = UnknownFrequency
+
+	var as_str string
+	if err := json.Unmarshal(input, &as_str); err != nil {
+		return err
+	}
+
+	switch as_str {
+	case "d", "Daily":
+		*f = Daily
+	case "w", "Weekly":
+		*f = Weekly
+	case "bw", "Biweekly":
+		*f = Biweekly
+	case "m", "Monthly":
+		*f = Monthly
+	case "q", "Quarterly":
+		*f = Quarterly
+	case "sa", "Semiannual":
+		*f = Semiannual
+	case "a", "Annual":
+		*f = Annual
+
+	case "wef":
+		*f = WeeklyEndingFriday
+	case "weth":
+		*f = WeeklyEndingThursday
+	case "wew":
+		*f = WeeklyEndingWednesday
+	case "wetu":
+		*f = WeeklyEndingTuesday
+	case "wem":
+		*f = WeeklyEndingMonday
+	case "wesu":
+		*f = WeeklyEndingSunday
+	case "wesa":
+		*f = WeeklyEndingSaturday
+	case "bwew":
+		*f = BiweeklyEndingWednesday
+	case "bwem":
+		*f = BiweeklyEndingMonday
+	}
+
+	if *f == UnknownFrequency {
+		return fmt.Errorf("unknown frequency format: %s", as_str)
+	}
+
+	return nil
+}
+
+func (f Frequency) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", f.LongString())), nil
+}
+
+func (f Frequency) String() string {
+	switch f {
+	case Daily:
+		return "d"
+	case Weekly:
+		return "w"
+	case Biweekly:
+		return "bw"
+	case Monthly:
+		return "m"
+	case Quarterly:
+		return "q"
+	case Semiannual:
+		return "sa"
+	case Annual:
+		return "a"
+	case WeeklyEndingFriday:
+		return "wef"
+	case WeeklyEndingThursday:
+		return "weth"
+	case WeeklyEndingWednesday:
+		return "wew"
+	case WeeklyEndingTuesday:
+		return "wetu"
+	case WeeklyEndingMonday:
+		return "wem"
+	case WeeklyEndingSunday:
+		return "wesu"
+	case WeeklyEndingSaturday:
+		return "wesa"
+	case BiweeklyEndingWednesday:
+		return "bwew"
+	case BiweeklyEndingMonday:
+		return "bwem"
+	}
+
+	return "unknown frequency"
+}
+
+func (f Frequency) LongString() string {
+	switch f {
+	case Daily:
+		return "Daily"
+	case Weekly:
+		return "Weekly"
+	case Biweekly:
+		return "Biweekly"
+	case Monthly:
+		return "Monthly"
+	case Quarterly:
+		return "Quarterly"
+	case Semiannual:
+		return "Semiannual"
+	case Annual:
+		return "Annual"
+	case WeeklyEndingFriday:
+		return "Weekly, Ending Friday"
+	case WeeklyEndingThursday:
+		return "Weekly, Ending Thursday"
+	case WeeklyEndingWednesday:
+		return "Weekly, Ending Wednesday"
+	case WeeklyEndingTuesday:
+		return "Weekly, Ending Tuesday"
+	case WeeklyEndingMonday:
+		return "Weekly, Ending Monday"
+	case WeeklyEndingSunday:
+		return "Weekly, Ending Sunday"
+	case WeeklyEndingSaturday:
+		return "Weekly, Ending Saturday"
+	case BiweeklyEndingWednesday:
+		return "Biweekly, Ending Wednesday"
+	case BiweeklyEndingMonday:
+		return "Biweekly, Ending Monday"
+	}
+
+	return "unknown frequency"
+}
+
+type DataPoint struct {
+	Date  Date    `json:"date" xml:"date"`
+	Value float64 `json:"value" xml:"value"`
+}
+
+// ordering
+type OrderType string
+
+const (
+	OrderId                 OrderType = "series_id"
+	OrderGroupId            OrderType = "group_id"
+	OrderTitle              OrderType = "title"
+	OrderName               OrderType = "name"
+	OrderCreated            OrderType = "created"
+	OrderSeriesCount        OrderType = "series_count"
+	OrderUnits              OrderType = "units"
+	OrderFrequency          OrderType = "frequency"
+	OrderSeasonalAdjustment OrderType = "seasonal_adjustment"
+	OrderStart              OrderType = "realtime_start"
+	OrderEnd                OrderType = "realtime_end"
+	OrderLastUpdated        OrderType = "last_updated"
+	OrderObservationStart   OrderType = "observation_start"
+	OrderObservationEnd     OrderType = "observation_end"
+	OrderPopularity         OrderType = "popularity"
+)
+
+// filter
+type FilterType string
+
+const (
+	FilterFrequency        FilterType = "frequency"
+	FilterUnits            FilterType = "units"
+	FilterSeasonalAdjusted FilterType = "seasonal_adjustment"
+)
+
+// sort
+type SortType string
+
+const (
+	SortAscending  SortType = "asc"
+	SortDescending SortType = "desc"
+)
+
+// tags
+type TagId string
+
+const (
+	TagNone               TagId = ""
+	TagFrequency          TagId = "Frequency"
+	TagGeneral            TagId = "General or Concept"
+	TagGeography          TagId = "Geography"
+	TagGeographyType      TagId = "Geography Type"
+	TagRelease            TagId = "Release"
+	TagSeasonalAdjustment TagId = "Seasonal Adjustment"
+	TagSource             TagId = "Source"
+)
+
+func (t *TagId) UnmarshalJSON(input []byte) error {
+	var as_str string
+	if err := json.Unmarshal(input, &as_str); err != nil {
+		return err
+	}
+
+	*t = TagNone
+
+	switch as_str {
+	case "freq":
+		*t = TagFrequency
+	case "gen":
+		*t = TagGeneral
+	case "geo":
+		*t = TagGeography
+	case "geot":
+		*t = TagGeographyType
+	case "rls":
+		*t = TagRelease
+	case "seas":
+		*t = TagSeasonalAdjustment
+	case "src":
+		*t = TagSource
+	}
+
+	if *t == TagNone {
+		return fmt.Errorf("unknown tag id '%s'", as_str)
+	}
+	return nil
+}
+func (t TagId) String() string {
+	switch t {
+	case TagFrequency:
+		return "freq"
+	case TagGeneral:
+		return "gen"
+	case TagGeography:
+		return "geo"
+	case TagGeographyType:
+		return "geot"
+	case TagRelease:
+		return "rls"
+	case TagSeasonalAdjustment:
+		return "seas"
+	case TagSource:
+		return "src"
+	}
+
+	return "unknown tag id"
+}
+
+func (t TagId) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
+//==============================================================================
+// errors
+//==============================================================================
+
+// Error type describing the various internal and API errors.
 type ErrorType uint32
 
 const (
@@ -110,7 +575,7 @@ func (e *APIError) Prefixf(f string, args ...interface{}) Error {
 // Generic error response type.
 //
 // If a non-success return code is returned, this type is expected to be parseable.
-type BaseError struct {
+type baseError struct {
 	Message string `json:"error_message" xml:"error_message"`
 	Code    uint32 `json:"error_code" xml:"error_code"`
 }
@@ -124,21 +589,25 @@ type BaseError struct {
 // Requires specifying the API key and response format for all future requests
 // through this client.
 type Client struct {
-	base_req BaseRequest
+	base_req baseRequest
 	base_url url.URL
 }
 
 // Create a new client with the given API key and response format.
 func NewClient(key string, format ResponseFormat) (Client, error) {
+	if len(key) != 32 {
+		return Client{}, fmt.Errorf("api key is invalid length")
+	}
+
 	api_url, err := url.Parse(API_URL)
 	if err != nil {
 		return Client{}, err
 	}
 
 	return Client{
-		base_req: BaseRequest{
+		base_req: baseRequest{
 			fmt:     format,
-			api_key: key,
+			api_key: ApiKey(key),
 		},
 		base_url: *api_url,
 	}, nil
@@ -174,14 +643,14 @@ func (c Client) unmarshal_body(body []byte, into interface{}) Error {
 	return nil
 }
 
-// Parses the byte slice as a `BaseError` depending on the response format.
-func (c Client) get_error(body []byte) (BaseError, Error) {
-	var result BaseError
+// Parses the byte slice as a `baseError` depending on the response format.
+func (c Client) get_error(body []byte) (baseError, Error) {
+	var result baseError
 	switch c.base_req.fmt {
 	case JSON:
 		err := json.Unmarshal(body, &result)
 		if err != nil {
-			return BaseError{}, &APIError{
+			return baseError{}, &APIError{
 				ty:  ParseError,
 				msg: fmt.Sprintf("failed to parse json error response: %v", err),
 			}
@@ -189,13 +658,13 @@ func (c Client) get_error(body []byte) (BaseError, Error) {
 	case XML:
 		err := xml.Unmarshal(body, &result)
 		if err != nil {
-			return BaseError{}, &APIError{
+			return baseError{}, &APIError{
 				ty:  ParseError,
 				msg: fmt.Sprintf("failed to parse xml error response: %v", err),
 			}
 		}
 	default:
-		return BaseError{}, &APIError{
+		return baseError{}, &APIError{
 			ty:  UnknownResponseFormat,
 			msg: fmt.Sprintf("unknown request/response type: %v", c.base_req.fmt),
 		}
