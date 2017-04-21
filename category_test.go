@@ -10,15 +10,6 @@ const (
 	CATEGORY_STLOUIS_DISTRICT_STATES = 32073
 )
 
-func make_client(t *testing.T) Client {
-	client, err := NewClient(API_KEY, JSON)
-	if err != nil {
-		t.Fatalf("could not create client: %v", err)
-	}
-
-	return client
-}
-
 //==============================================================================
 //
 // GET: /fred/category

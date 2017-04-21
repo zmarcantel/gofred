@@ -85,8 +85,8 @@ func (r baseRequest) MergeParams(v url.Values) {
 }
 
 type DatedRequest struct {
-	Start Date `json:"realtime_start" xml:"realtime_start"`
-	End   Date `json:"realtime_end" xml:"realtime_end"`
+	Start Date `json:"realtime_start" xml:"realtime_start,attr"`
+	End   Date `json:"realtime_end" xml:"realtime_end,attr"`
 }
 
 func (r DatedRequest) ToParams() url.Values {
@@ -423,8 +423,8 @@ func (f Frequency) LongString() string {
 }
 
 type DataPoint struct {
-	Date  Date    `json:"date" xml:"date"`
-	Value float64 `json:"value" xml:"value"`
+	Date  Date    `json:"date" xml:"date,attr"`
+	Value float64 `json:"value" xml:"value,attr"`
 }
 
 func (d *DataPoint) UnmarshalJSON(input []byte) error {
@@ -683,8 +683,8 @@ func (e *APIError) Prefixf(f string, args ...interface{}) Error {
 //
 // If a non-success return code is returned, this type is expected to be parseable.
 type baseError struct {
-	Message string `json:"error_message" xml:"error_message"`
-	Code    uint32 `json:"error_code" xml:"error_code"`
+	Message string `json:"error_message" xml:"error_message,attr"`
+	Code    uint32 `json:"error_code" xml:"error_code,attr"`
 }
 
 //==============================================================================
@@ -792,6 +792,10 @@ func (c Client) get(desc, req_url string) ([]byte, Error) {
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, &APIError{ty: ReadError, msg: err.Error()}
+	}
+
+	if c.base_req.fmt == XML {
+		fmt.Println(string(body))
 	}
 
 	// we need this a few times

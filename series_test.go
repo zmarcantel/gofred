@@ -17,37 +17,37 @@ const (
 //==============================================================================
 
 func TestSeries_AnnualGNP(t *testing.T) {
-	client := make_client(t)
+	mux_filetypes(t, func(client Client) {
+		req := SeriesRequest{
+			Series: SERIES_GNP_ANNUAL,
+		}
+		res, err := client.Series(req)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	req := SeriesRequest{
-		Series: SERIES_GNP_ANNUAL,
-	}
-	res, err := client.Series(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+		expect_title := "Real Gross National Product"
+		if res.Title != expect_title {
+			t.Errorf("expected title:\n%+v\ngot:\n%+v", expect_title, res.Title)
+		}
 
-	expect_title := "Real Gross National Product"
-	if res.Title != expect_title {
-		t.Errorf("expected title:\n%+v\ngot:\n%+v", expect_title, res.Title)
-	}
+		expect_obvs_start, form_err := time.Parse(DATE_FORMAT, "1929-01-01")
+		if form_err != nil {
+			t.Fatalf("could not create expected start date: %v", form_err)
+		}
+		if time.Time(res.ObservationStart) != expect_obvs_start {
+			t.Errorf("incorrect observation start time: expected %v, got %v",
+				expect_obvs_start, time.Time(res.ObservationStart))
+		}
 
-	expect_obvs_start, form_err := time.Parse(DATE_FORMAT, "1929-01-01")
-	if form_err != nil {
-		t.Fatalf("could not create expected start date: %v", form_err)
-	}
-	if time.Time(res.ObservationStart) != expect_obvs_start {
-		t.Errorf("incorrect observation start time: expected %v, got %v",
-			expect_obvs_start, time.Time(res.ObservationStart))
-	}
+		if res.SeasonallyAdjusted {
+			t.Errorf("GNP should not be seasonally adjusted")
+		}
 
-	if res.SeasonallyAdjusted {
-		t.Errorf("GNP should not be seasonally adjusted")
-	}
-
-	if res.Frequency != Annual {
-		t.Errorf("expect GNP to be reported annually, got: %v", res.Frequency)
-	}
+		if res.Frequency != Annual {
+			t.Errorf("expect GNP to be reported annually, got: %v", res.Frequency)
+		}
+	})
 }
 
 func TestSeries_Nonexistant(t *testing.T) {
