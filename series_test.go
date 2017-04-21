@@ -98,3 +98,61 @@ func TestSeriesCategories_EchangeJpUs(t *testing.T) {
 		}
 	}
 }
+
+//==============================================================================
+//
+// GET: /fred/series/observations
+//
+//==============================================================================
+
+func TestSeriesObservations_GrossNationalProduct(t *testing.T) {
+	client := make_client(t)
+
+	limit := 50
+
+	req := NewSeriesObservationsRequest(SERIES_GNP_ANNUAL, time.Unix(0, 0), time.Now().Add(-time.Hour*24))
+	req.Limit = uint(limit)
+
+	res, err := client.SeriesObservations(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Observations) > limit {
+		t.Fatalf("expected at most %d data points, found %d: %+v", limit, len(res.Observations), res)
+	}
+
+}
+
+//==============================================================================
+//
+// GET: /fred/series/search
+//
+//==============================================================================
+
+func TestSeriesSearch_Monetary(t *testing.T) {
+	client := make_client(t)
+
+	limit := 50
+
+	req := NewSeriesSearchRequest("monetary", SearchFullText)
+	req.Limit = uint(limit)
+	req.Order = OrderLastUpdated
+
+	res, err := client.SeriesSearch(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Series) > limit {
+		t.Fatalf("expected at most %d series, found %d: %+v", limit, len(res.Series), res)
+	}
+
+	var last DateTime
+	for _, s := range res.Series {
+		if time.Time(s.LastUpdate).Before(time.Time(last)) {
+			t.Errorf("should be sorted by date, got: %v after: %v", s.LastUpdate, last)
+		}
+		last = s.LastUpdate
+	}
+}

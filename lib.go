@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -310,27 +311,29 @@ func (f *Frequency) UnmarshalJSON(input []byte) error {
 	case "a", "Annual":
 		*f = Annual
 
-	case "wef":
+	case "wef", "Weekly, Ending Friday":
 		*f = WeeklyEndingFriday
-	case "weth":
+	case "weth", "Weekly, Ending Thursday":
 		*f = WeeklyEndingThursday
-	case "wew":
+	case "wew", "Weekly, Ending Wednesday":
 		*f = WeeklyEndingWednesday
-	case "wetu":
+	case "wetu", "Weekly, Ending Tuesday":
 		*f = WeeklyEndingTuesday
-	case "wem":
+	case "wem", "Weekly, Ending Monday":
 		*f = WeeklyEndingMonday
-	case "wesu":
+	case "wesu", "Weekly, Ending Sunday":
 		*f = WeeklyEndingSunday
-	case "wesa":
+	case "wesa", "Weekly, Ending Saturday":
 		*f = WeeklyEndingSaturday
-	case "bwew":
+	case "bwew", "Biweekly, Ending Wednesday":
 		*f = BiweeklyEndingWednesday
-	case "bwem":
+	case "bwem", "Biweekly, Ending Monday":
 		*f = BiweeklyEndingMonday
-	}
 
-	if *f == UnknownFrequency {
+	case "Not Applicable":
+		*f = UnknownFrequency
+
+	default:
 		return fmt.Errorf("unknown frequency format: %s", as_str)
 	}
 
@@ -422,6 +425,32 @@ func (f Frequency) LongString() string {
 type DataPoint struct {
 	Date  Date    `json:"date" xml:"date"`
 	Value float64 `json:"value" xml:"value"`
+}
+
+func (d *DataPoint) UnmarshalJSON(input []byte) error {
+	var as_map map[string]string
+	if err := json.Unmarshal(input, &as_map); err != nil {
+		return err
+	}
+
+	date, exists := as_map["date"]
+	if !exists {
+		return fmt.Errorf("no date in datapoint")
+	}
+
+	value, exists := as_map["value"]
+	if !exists {
+		return fmt.Errorf("no value in datapoint")
+	}
+
+	as_time, err := time.Parse(DATE_FORMAT, date)
+	if err != nil {
+		return err
+	}
+	d.Date = Date(as_time)
+
+	d.Value, err = strconv.ParseFloat(value, 64)
+	return err
 }
 
 // ordering
@@ -529,6 +558,84 @@ func (t TagId) String() string {
 
 func (t TagId) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
+}
+
+// units
+
+type UnitType uint
+
+const (
+	UnitLinear                                   UnitType = 0
+	UnitChange                                   UnitType = 1
+	UnitChangeFromYearAgo                        UnitType = 2
+	UnitPercentChange                            UnitType = 3
+	UnitPercentChangeFromYearAgo                 UnitType = 4
+	UnitCompoundedAnnualRateOfChange             UnitType = 5
+	UnitContinuouslyCompoundedRateOfChange       UnitType = 6
+	UnitContinuouslyCompoundedAnnualRateOfChange UnitType = 7
+	UnitNaturalLog                               UnitType = 8
+)
+
+func (u UnitType) String() string {
+	switch u {
+	case UnitLinear:
+		return "Linear"
+	case UnitChange:
+		return "Change"
+	case UnitChangeFromYearAgo:
+		return "Change from Year Ago"
+	case UnitPercentChange:
+		return "Percent Change"
+	case UnitPercentChangeFromYearAgo:
+		return "Percent Change from Year Ago"
+	case UnitCompoundedAnnualRateOfChange:
+		return "Compounded Annual Rate of Change"
+	case UnitContinuouslyCompoundedRateOfChange:
+		return "Continuously Compounded Rate of Change"
+	case UnitContinuouslyCompoundedAnnualRateOfChange:
+		return "Continuously Compounded Annual Rate of Change"
+	case UnitNaturalLog:
+		return "Natural Log"
+	}
+
+	return "unknwon unit"
+}
+
+func (u *UnitType) UnmarshalJSON(input []byte) error {
+	var as_str string
+	err := json.Unmarshal(input, &as_str)
+	if err != nil {
+		return err
+	}
+
+	switch as_str {
+	case "lin":
+		*u = UnitLinear
+	case "chg":
+		*u = UnitChange
+	case "ch1":
+		*u = UnitChangeFromYearAgo
+	case "pch":
+		*u = UnitPercentChange
+	case "pc1":
+		*u = UnitPercentChangeFromYearAgo
+	case "pca":
+		*u = UnitCompoundedAnnualRateOfChange
+	case "cch":
+		*u = UnitContinuouslyCompoundedRateOfChange
+	case "cca":
+		*u = UnitContinuouslyCompoundedAnnualRateOfChange
+	case "log":
+		*u = UnitNaturalLog
+	default:
+		return fmt.Errorf("unknown unit: %s", as_str)
+	}
+
+	return nil
+}
+
+func (u UnitType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.String())
 }
 
 //==============================================================================
