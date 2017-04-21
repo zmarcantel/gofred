@@ -156,3 +156,71 @@ func TestSeriesSearch_Monetary(t *testing.T) {
 		last = s.LastUpdate
 	}
 }
+
+//==============================================================================
+//
+// GET: /fred/series/search/tags
+//
+//==============================================================================
+
+func TestSeriesSearchTags_Monetary_Tag30yr(t *testing.T) {
+	client := make_client(t)
+
+	limit := 50
+
+	req := NewSeriesSearchTagsRequest("monetary", "30-year")
+	req.Limit = uint(limit)
+	req.Order = OrderPopularity
+	req.Sort = SortAscending
+
+	res, err := client.SeriesSearchTags(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Tags) > limit {
+		t.Fatalf("expected at most %d series, found %d: %+v", limit, len(res.Tags), res)
+	}
+
+	last := uint(0)
+	for _, tag := range res.Tags {
+		if tag.Popularity < last {
+			t.Errorf("should be sorted by popularity, got: %d after: %d", tag.Popularity, last)
+		}
+		last = tag.Popularity
+	}
+}
+
+//==============================================================================
+//
+// GET: /fred/series/search/related_tags
+//
+//==============================================================================
+
+func TestSeriesSearchRelatedTags_Monetary_Tagfrb(t *testing.T) {
+	client := make_client(t)
+
+	limit := 15
+
+	req := NewSeriesSearchTagsRequest("monetary", "frb")
+	req.Limit = uint(limit)
+	req.Order = OrderPopularity
+	req.Sort = SortAscending
+
+	res, err := client.SeriesSearchRelatedTags(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Tags) > limit {
+		t.Fatalf("expected at most %d series, found %d: %+v", limit, len(res.Tags), res)
+	}
+
+	last := uint(0)
+	for _, tag := range res.Tags {
+		if tag.Popularity < last {
+			t.Errorf("should be sorted by popularity, got: %d after: %d", tag.Popularity, last)
+		}
+		last = tag.Popularity
+	}
+}

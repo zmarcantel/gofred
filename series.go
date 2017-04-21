@@ -292,3 +292,110 @@ func (c Client) SeriesSearch(req SeriesSearchRequest) (SeriesSearchResponse, Err
 
 	return result, err
 }
+
+//==============================================================================
+//
+// GET: /fred/series/search/tags
+//
+//==============================================================================
+
+type SeriesSearchTagsRequest struct {
+	baseRequest
+	DatedRequest
+	TaggedRequest
+	PagedRequest
+	OrderedRequest
+
+	TagGroup     TagId
+	SeriesSearch string
+	TagSearch    string
+}
+
+func NewSeriesSearchTagsRequest(series string, tags ...string) SeriesSearchTagsRequest {
+	return SeriesSearchTagsRequest{
+		SeriesSearch: series,
+		TaggedRequest: TaggedRequest{
+			Tags: tags,
+		},
+	}
+}
+
+func (r SeriesSearchTagsRequest) ToParams() url.Values {
+	v := r.baseRequest.ToParams()
+	r.DatedRequest.MergeParams(v)
+	r.TaggedRequest.MergeParams(v)
+	r.PagedRequest.MergeParams(v)
+	r.OrderedRequest.MergeParams(v)
+
+	v.Set("series_search_text", r.SeriesSearch)
+	if len(r.TagSearch) > 0 {
+		v.Set("tag_search_text", string(r.TagSearch))
+	}
+	if r.TagGroup != TagNone {
+		v.Set("tag_group_id", string(r.TagGroup))
+	}
+
+	return v
+}
+
+type SeriesSearchTagsResponse struct {
+	Start  Date      `json:"realtime_start" xml:"realtime_start"`
+	End    Date      `json:"realtime_end" xml:"realtime_end"`
+	Order  OrderType `json:"order_by" xml:"order_by"`
+	Sort   SortType  `json:"sort_order" xml:"sort_order"`
+	Count  uint      `json:"count" xml:"count"`
+	Offset uint      `json:"offset" xml:"offset"`
+	Limit  uint      `json:"limit" xml:"limit"`
+	Tags   []Tag     `json:"tags" xml:"tags"`
+}
+
+func (c Client) SeriesSearchTags(req SeriesSearchTagsRequest) (SeriesSearchTagsResponse, Error) {
+	req.baseRequest = c.base_req
+
+	req_url := c.base_url
+	req_url.RawQuery = req.ToParams().Encode()
+	req_url.Path = fmt.Sprintf("%s/series/search/tags", req_url.Path)
+
+	body, err := c.get("series", req_url.String())
+	if err != nil {
+		return SeriesSearchTagsResponse{}, err.Prefixf("error searching series tags '%s'", req.SeriesSearch)
+	}
+
+	// parse the correct format
+	var result SeriesSearchTagsResponse
+	err = c.unmarshal_body(body, &result)
+	if err != nil {
+		return SeriesSearchTagsResponse{}, err.Prefixf("could not search series tags '%s'", req.SeriesSearch)
+	}
+
+	return result, err
+}
+
+//==============================================================================
+//
+// GET: /fred/series/search/related_tags
+//
+//==============================================================================
+
+func (c Client) SeriesSearchRelatedTags(req SeriesSearchTagsRequest) (SeriesSearchTagsResponse, Error) {
+	req.baseRequest = c.base_req
+
+	req_url := c.base_url
+	req_url.RawQuery = req.ToParams().Encode()
+	req_url.Path = fmt.Sprintf("%s/series/search/related_tags", req_url.Path)
+
+	var result SeriesSearchTagsResponse
+
+	body, err := c.get("series", req_url.String())
+	if err != nil {
+		return result, err.Prefixf("error searching series related tags '%s'", req.SeriesSearch)
+	}
+
+	// parse the correct format
+	err = c.unmarshal_body(body, &result)
+	if err != nil {
+		return result, err.Prefixf("could not search series related tags '%s'", req.SeriesSearch)
+	}
+
+	return result, err
+}

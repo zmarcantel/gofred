@@ -149,11 +149,11 @@ func TestCategorySeries_TradeBalance(t *testing.T) {
 	end_date := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 	req := NewCategorySeriesRequest(CATEGORY_TRADE_BALANCE)
-	req.DatedRequest.Start = Date(start_date)
-	req.DatedRequest.End = Date(end_date)
-	req.OrderedRequest.Order = OrderTitle
-	req.OrderedRequest.Sort = SortAscending
-	req.PagedRequest.Limit = uint(limit)
+	req.Start = Date(start_date)
+	req.End = Date(end_date)
+	req.Order = OrderTitle
+	req.Sort = SortAscending
+	req.Limit = uint(limit)
 
 	series, err := client.SeriesInCategory(req)
 	if err != nil {
@@ -195,11 +195,11 @@ func TestCategoryTags_TradeBalance(t *testing.T) {
 	end_date := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 	req := NewCategoryTagsRequest(CATEGORY_TRADE_BALANCE, TagNone, "")
-	req.DatedRequest.Start = Date(start_date)
-	req.DatedRequest.End = Date(end_date)
-	req.OrderedRequest.Order = OrderName
-	req.OrderedRequest.Sort = SortAscending
-	req.PagedRequest.Limit = uint(limit)
+	req.Start = Date(start_date)
+	req.End = Date(end_date)
+	req.Order = OrderName
+	req.Sort = SortAscending
+	req.Limit = uint(limit)
 
 	res, err := client.CategoryTags(req)
 	if err != nil {
@@ -241,11 +241,11 @@ func TestCategoryRelatedTags_TradeBalance(t *testing.T) {
 	end_date := time.Date(2010, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 	req := NewCategoryRelatedTagsRequest(CATEGORY_TRADE_BALANCE, "services", "quarterly")
-	req.DatedRequest.Start = Date(start_date)
-	req.DatedRequest.End = Date(end_date)
-	req.OrderedRequest.Order = OrderName
-	req.OrderedRequest.Sort = SortAscending
-	req.PagedRequest.Limit = uint(limit)
+	req.Start = Date(start_date)
+	req.End = Date(end_date)
+	req.Order = OrderName
+	req.Sort = SortAscending
+	req.Limit = uint(limit)
 
 	res, err := client.CategoryRelatedTags(req)
 	if err != nil {
