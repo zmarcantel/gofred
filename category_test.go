@@ -67,7 +67,7 @@ func TestCategoryChildren_TradeBalance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	children, err := client.CategoryChildren(trade.ParentId, time.Unix(0, 0), time.Now())
+	children, err := client.CategoryChildren(trade.ParentId, time.Unix(0, 0), time.Now().Local())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestCategoryChildren_TradeBalance(t *testing.T) {
 
 func TestCategoryRelated_Districts(t *testing.T) {
 	client := make_client(t)
-	related, err := client.RelatedCategories(CATEGORY_STLOUIS_DISTRICT_STATES, time.Unix(0, 0), time.Now())
+	related, err := client.RelatedCategories(CATEGORY_STLOUIS_DISTRICT_STATES, time.Unix(0, 0), time.Now().Local())
 	if err != nil {
 		t.Fatal(err)
 	}

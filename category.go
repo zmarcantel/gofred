@@ -127,7 +127,7 @@ func (c Client) CategoryChildren(category uint, start, end time.Time) ([]Categor
 
 	body, err := c.get("category children", req_url.String())
 	if err != nil {
-		return nil, err.Prefixf("error getting category %d: %v", category)
+		return nil, err.Prefixf("error getting category children %d", category)
 	}
 
 	var result categoryChildrenResponse
