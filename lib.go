@@ -211,7 +211,7 @@ func (a *SeasonalAdjustment) UnmarshalJSON(input []byte) error {
 
 	if as_str == "Not Seasonally Adjusted" {
 		*a = Unadjusted
-	} else if as_str == "Seasonally Adjusted" {
+	} else if as_str == "Seasonally Adjusted" || as_str == "Seasonally Adjusted Annual Rate" {
 		*a = Adjusted
 	} else {
 		return fmt.Errorf("unexpected value for seasonal adjustment: %s", as_str)
@@ -481,6 +481,9 @@ const (
 	FilterFrequency        FilterType = "frequency"
 	FilterUnits            FilterType = "units"
 	FilterSeasonalAdjusted FilterType = "seasonal_adjustment"
+	FilterAll              FilterType = "all"
+	FilterRegional         FilterType = "regional"
+	FilterMacro            FilterType = "macro"
 )
 
 // sort

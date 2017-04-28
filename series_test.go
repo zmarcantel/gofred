@@ -224,3 +224,48 @@ func TestSeriesSearchRelatedTags_Monetary_Tagfrb(t *testing.T) {
 		last = tag.Popularity
 	}
 }
+
+//==============================================================================
+//
+// GET: /fred/series/tags
+//
+//==============================================================================
+
+func TestSeriesTags_JPUS_Exchange(t *testing.T) {
+	client := make_client(t)
+
+	req := NewSeriesTagsRequest(SERIES_EXCHANGE_JP_US)
+	req.Order = OrderPopularity
+	req.Sort = SortAscending
+
+	res, err := client.SeriesTags(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	last := uint(0)
+	for _, tag := range res.Tags {
+		if tag.Popularity < last {
+			t.Errorf("should be sorted by popularity, got: %d after: %d", tag.Popularity, last)
+		}
+		last = tag.Popularity
+	}
+}
+
+//==============================================================================
+//
+// GET: /fred/series/updates
+//
+//==============================================================================
+
+func TestSeriesUpdates_Macro(t *testing.T) {
+	client := make_client(t)
+
+	req := NewSeriesUpdatesRequest(FilterMacro)
+	_, err := client.SeriesUpdates(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO: can we deterministically test this endpoint?
+}

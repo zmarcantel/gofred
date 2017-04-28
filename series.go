@@ -123,7 +123,7 @@ func (c Client) CategoriesForSeries(req SeriesRequest) ([]Category, Error) {
 	req_url.RawQuery = req.ToParams().Encode()
 	req_url.Path = fmt.Sprintf("%s/series/categories", req_url.Path)
 
-	body, err := c.get("series", req_url.String())
+	body, err := c.get("series categories", req_url.String())
 	if err != nil {
 		return nil, err.Prefixf("error getting series' categories %s: %v", req.Series, err)
 	}
@@ -202,7 +202,7 @@ func (c Client) SeriesObservations(req SeriesObservationsRequest) (SeriesObserva
 	req_url.RawQuery = req.ToParams().Encode()
 	req_url.Path = fmt.Sprintf("%s/series/observations", req_url.Path)
 
-	body, err := c.get("series", req_url.String())
+	body, err := c.get("series observations", req_url.String())
 	if err != nil {
 		return SeriesObservationsResponse{}, err.Prefixf("error getting series %s: %v",
 			req.Series, err)
@@ -278,7 +278,7 @@ func (c Client) SeriesSearch(req SeriesSearchRequest) (SeriesSearchResponse, Err
 	req_url.RawQuery = req.ToParams().Encode()
 	req_url.Path = fmt.Sprintf("%s/series/search", req_url.Path)
 
-	body, err := c.get("series", req_url.String())
+	body, err := c.get("series search", req_url.String())
 	if err != nil {
 		return SeriesSearchResponse{}, err.Prefixf("error searching series '%s'", req.Search)
 	}
@@ -356,7 +356,7 @@ func (c Client) SeriesSearchTags(req SeriesSearchTagsRequest) (SeriesSearchTagsR
 	req_url.RawQuery = req.ToParams().Encode()
 	req_url.Path = fmt.Sprintf("%s/series/search/tags", req_url.Path)
 
-	body, err := c.get("series", req_url.String())
+	body, err := c.get("series tag search", req_url.String())
 	if err != nil {
 		return SeriesSearchTagsResponse{}, err.Prefixf("error searching series tags '%s'", req.SeriesSearch)
 	}
@@ -386,7 +386,7 @@ func (c Client) SeriesSearchRelatedTags(req SeriesSearchTagsRequest) (SeriesSear
 
 	var result SeriesSearchTagsResponse
 
-	body, err := c.get("series", req_url.String())
+	body, err := c.get("series related tags", req_url.String())
 	if err != nil {
 		return result, err.Prefixf("error searching series related tags '%s'", req.SeriesSearch)
 	}
@@ -395,6 +395,130 @@ func (c Client) SeriesSearchRelatedTags(req SeriesSearchTagsRequest) (SeriesSear
 	err = c.unmarshal_body(body, &result)
 	if err != nil {
 		return result, err.Prefixf("could not search series related tags '%s'", req.SeriesSearch)
+	}
+
+	return result, err
+}
+
+//==============================================================================
+//
+// GET: /fred/series/tags
+//
+//==============================================================================
+
+type SeriesTagsRequest struct {
+	baseRequest
+	DatedRequest
+	OrderedRequest
+	Series string
+}
+
+func (r SeriesTagsRequest) ToParams() url.Values {
+	v := r.baseRequest.ToParams()
+	r.DatedRequest.MergeParams(v)
+	r.OrderedRequest.MergeParams(v)
+	v.Set("series_id", r.Series)
+	return v
+}
+
+func NewSeriesTagsRequest(series string) SeriesTagsRequest {
+	return SeriesTagsRequest{
+		Series: series,
+	}
+}
+
+type SeriesTagsResponse struct {
+	Start  Date      `json:"realtime_start" xml:"realtime_start"`
+	End    Date      `json:"realtime_end" xml:"realtime_end"`
+	Order  OrderType `json:"order_by" xml:"order_by"`
+	Sort   SortType  `json:"sort_order" xml:"sort_order"`
+	Count  uint      `json:"count" xml:"count"`
+	Offset uint      `json:"offset" xml:"offset"`
+	Limit  uint      `json:"limit" xml:"limit"`
+	Tags   []Tag     `json:"tags" xml:"tags"`
+}
+
+func (c Client) SeriesTags(req SeriesTagsRequest) (SeriesTagsResponse, Error) {
+	req.baseRequest = c.base_req
+
+	req_url := c.base_url
+	req_url.RawQuery = req.ToParams().Encode()
+	req_url.Path = fmt.Sprintf("%s/series/tags", req_url.Path)
+
+	var result SeriesTagsResponse
+
+	body, err := c.get("series tags", req_url.String())
+	if err != nil {
+		return result, err.Prefixf("error searching series tags '%s'", req.Series)
+	}
+
+	// parse the correct format
+	err = c.unmarshal_body(body, &result)
+	if err != nil {
+		return result, err.Prefixf("could not search series tags '%s'", req.Series)
+	}
+
+	return result, err
+}
+
+//==============================================================================
+//
+// GET: /fred/series/updates
+//
+//==============================================================================
+
+type SeriesUpdatesRequest struct {
+	baseRequest
+	DatedRequest
+	PagedRequest
+	Filter FilterType
+}
+
+func (r SeriesUpdatesRequest) ToParams() url.Values {
+	v := r.baseRequest.ToParams()
+	r.DatedRequest.MergeParams(v)
+	r.PagedRequest.MergeParams(v)
+	v.Set("filter_value", string(r.Filter))
+	return v
+}
+
+func NewSeriesUpdatesRequest(filter FilterType) SeriesUpdatesRequest {
+	return SeriesUpdatesRequest{
+		Filter: filter,
+	}
+}
+
+type SeriesUpdatesResponse struct {
+	Start          Date       `json:"realtime_start" xml:"realtime_start"`
+	End            Date       `json:"realtime_end" xml:"realtime_end"`
+	FilterVariable string     `json:"filter_variable" xml:"filter_variable"`
+	Filter         FilterType `json:"filter_value" xml:"filter_value"`
+	Order          OrderType  `json:"order_by" xml:"order_by"`
+	Sort           SortType   `json:"sort_order" xml:"sort_order"`
+	Count          uint       `json:"count" xml:"count"`
+	Offset         uint       `json:"offset" xml:"offset"`
+	Limit          uint       `json:"limit" xml:"limit"`
+	Series         []Series   `json:"seriess" xml:"seriess"`
+}
+
+func (c Client) SeriesUpdates(req SeriesUpdatesRequest) (SeriesUpdatesResponse, Error) {
+	req.baseRequest = c.base_req
+
+	req_url := c.base_url
+	req_url.RawQuery = req.ToParams().Encode()
+	req_url.Path = fmt.Sprintf("%s/series/updates", req_url.Path)
+
+	var result SeriesUpdatesResponse
+
+	body, err := c.get("series updates", req_url.String())
+	if err != nil {
+		return result, err.Prefixf("error searching series updates")
+	}
+
+	// parse the correct format
+	err = c.unmarshal_body(body, &result)
+	if err != nil {
+		return result, err.Prefixf("could not search series updates")
 	}
 
 	return result, err
