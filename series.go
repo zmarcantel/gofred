@@ -1,25 +1,26 @@
 package gofred
 
 import (
+	"encoding/xml"
 	"fmt"
 	"net/url"
 	"time"
 )
 
 type Series struct {
-	Id                 string             `json:"id" xml:"id"`
-	Start              Date               `json:"realtime_start" xml:"realtime_start"`
-	End                Date               `json:"realtime_end" xml:"realtime_end"`
-	Title              string             `json:"title" xml:"title"`
-	ObservationStart   Date               `json:"observation_start" xml:"observation_start"`
-	ObservationEnd     Date               `json:"observation_end" xml:"observation_end"`
-	Frequency          Frequency          `json:"frequency" xml:"frequency"`
-	Units              string             `json:"units" xml:"units"`
-	UnitsShort         string             `json:"units_short" xml:"units_short"`
-	SeasonallyAdjusted SeasonalAdjustment `json:"seasonal_adjustment" xml:"seasonal_adjustment"`
-	LastUpdate         DateTime           `json:"last_updated" xml:"last_updated"`
-	Popularity         uint16             `json:"popularity" xml:"popularity"` // TODO: type check
-	Notes              string             `json:"notes" xml:"notes"`
+	Id                 string             `json:"id" xml:"id,attr"`
+	Start              Date               `json:"realtime_start" xml:"realtime_start,attr"`
+	End                Date               `json:"realtime_end" xml:"realtime_end,attr"`
+	Title              string             `json:"title" xml:"title,attr"`
+	ObservationStart   Date               `json:"observation_start" xml:"observation_start,attr"`
+	ObservationEnd     Date               `json:"observation_end" xml:"observation_end,attr"`
+	Frequency          Frequency          `json:"frequency" xml:"frequency,attr"`
+	Units              string             `json:"units" xml:"units,attr"`
+	UnitsShort         string             `json:"units_short" xml:"units_short,attr"`
+	SeasonallyAdjusted SeasonalAdjustment `json:"seasonal_adjustment" xml:"seasonal_adjustment,attr"`
+	LastUpdate         DateTime           `json:"last_updated" xml:"last_updated,attr"`
+	Popularity         uint16             `json:"popularity" xml:"popularity,attr"` // TODO: type check
+	Notes              string             `json:"notes" xml:"notes,attr"`
 }
 
 type SeriesSearchType string
@@ -59,9 +60,10 @@ func (r SeriesRequest) ToParams() url.Values {
 
 // Response type which _should_ contain only one category.
 type seriesResponse struct {
-	Start  Date     `json:"realtime_start" xml:"realtime_start"`
-	End    Date     `json:"realtime_end" xml:"realtime_end"`
-	Series []Series `json:"seriess" xml:"seriess"`
+	Start   Date     `json:"realtime_start" xml:"realtime_start,attr"`
+	End     Date     `json:"realtime_end" xml:"realtime_end,attr"`
+	Series  []Series `json:"seriess" xml:"series"`
+	xmlName xml.Name `xml:"seriess"`
 }
 
 //
@@ -113,7 +115,7 @@ func (c Client) Series(req SeriesRequest) (Series, Error) { // TODO: add a Serie
 
 // Response type which _should_ contain only one category.
 type seriesCategoriesResponse struct {
-	Categories []Category `json:"categories" xml:"categories"`
+	Categories []Category `json:"categories" xml:"category"`
 }
 
 func (c Client) CategoriesForSeries(req SeriesRequest) ([]Category, Error) {
@@ -181,18 +183,18 @@ func (r SeriesObservationsRequest) ToParams() url.Values {
 
 // Response type which _should_ contain only one category.
 type SeriesObservationsResponse struct {
-	Start            Date      `json:"realtime_start" xml:"realtime_start"`
-	End              Date      `json:"realtime_end" xml:"realtime_end"`
-	ObservationStart Date      `json:"observation_start" xml:"observation_start"`
-	ObservationEnd   Date      `json:"observation_end" xml:"observation_end"`
-	Order            OrderType `json:"order_by" xml:"order_by"`
-	Sort             SortType  `json:"sort_order" xml:"sort_order"`
-	Count            uint      `json:"count" xml:"count"`
-	Offset           uint      `json:"offset" xml:"offset"`
-	Limit            uint      `json:"limit" xml:"limit"`
+	Start            Date      `json:"realtime_start" xml:"realtime_start,attr"`
+	End              Date      `json:"realtime_end" xml:"realtime_end,attr"`
+	ObservationStart Date      `json:"observation_start" xml:"observation_start,attr"`
+	ObservationEnd   Date      `json:"observation_end" xml:"observation_end,attr"`
+	Order            OrderType `json:"order_by" xml:"order_by,attr"`
+	Sort             SortType  `json:"sort_order" xml:"sort_order,attr"`
+	Count            uint      `json:"count" xml:"count,attr"`
+	Offset           uint      `json:"offset" xml:"offset,attr"`
+	Limit            uint      `json:"limit" xml:"limit,attr"`
 
-	Units        UnitType    `json:"units" xml:"units"`
-	Observations []DataPoint `json:"observations" xml:"observations"`
+	Units        UnitType    `json:"units" xml:"units,attr"`
+	Observations []DataPoint `json:"observations" xml:"observations,attr"`
 }
 
 func (c Client) SeriesObservations(req SeriesObservationsRequest) (SeriesObservationsResponse, Error) {
@@ -261,13 +263,13 @@ func (r SeriesSearchRequest) ToParams() url.Values {
 }
 
 type SeriesSearchResponse struct {
-	Start  Date      `json:"realtime_start" xml:"realtime_start"`
-	End    Date      `json:"realtime_end" xml:"realtime_end"`
-	Order  OrderType `json:"order_by" xml:"order_by"`
-	Sort   SortType  `json:"sort_order" xml:"sort_order"`
-	Count  uint      `json:"count" xml:"count"`
-	Offset uint      `json:"offset" xml:"offset"`
-	Limit  uint      `json:"limit" xml:"limit"`
+	Start  Date      `json:"realtime_start" xml:"realtime_start,attr"`
+	End    Date      `json:"realtime_end" xml:"realtime_end,attr"`
+	Order  OrderType `json:"order_by" xml:"order_by,attr"`
+	Sort   SortType  `json:"sort_order" xml:"sort_order,attr"`
+	Count  uint      `json:"count" xml:"count,attr"`
+	Offset uint      `json:"offset" xml:"offset,attr"`
+	Limit  uint      `json:"limit" xml:"limit,attr"`
 	Series []Series  `json:"seriess" xml:"seriess"`
 }
 
@@ -339,14 +341,14 @@ func (r SeriesSearchTagsRequest) ToParams() url.Values {
 }
 
 type SeriesSearchTagsResponse struct {
-	Start  Date      `json:"realtime_start" xml:"realtime_start"`
-	End    Date      `json:"realtime_end" xml:"realtime_end"`
-	Order  OrderType `json:"order_by" xml:"order_by"`
-	Sort   SortType  `json:"sort_order" xml:"sort_order"`
-	Count  uint      `json:"count" xml:"count"`
-	Offset uint      `json:"offset" xml:"offset"`
-	Limit  uint      `json:"limit" xml:"limit"`
-	Tags   []Tag     `json:"tags" xml:"tags"`
+	Start  Date      `json:"realtime_start" xml:"realtime_start,attr"`
+	End    Date      `json:"realtime_end" xml:"realtime_end,attr"`
+	Order  OrderType `json:"order_by" xml:"order_by,attr"`
+	Sort   SortType  `json:"sort_order" xml:"sort_order,attr"`
+	Count  uint      `json:"count" xml:"count,attr"`
+	Offset uint      `json:"offset" xml:"offset,attr"`
+	Limit  uint      `json:"limit" xml:"limit,attr"`
+	Tags   []Tag     `json:"tags" xml:"tags,attr"`
 }
 
 func (c Client) SeriesSearchTags(req SeriesSearchTagsRequest) (SeriesSearchTagsResponse, Error) {
@@ -428,14 +430,14 @@ func NewSeriesTagsRequest(series string) SeriesTagsRequest {
 }
 
 type SeriesTagsResponse struct {
-	Start  Date      `json:"realtime_start" xml:"realtime_start"`
-	End    Date      `json:"realtime_end" xml:"realtime_end"`
-	Order  OrderType `json:"order_by" xml:"order_by"`
-	Sort   SortType  `json:"sort_order" xml:"sort_order"`
-	Count  uint      `json:"count" xml:"count"`
-	Offset uint      `json:"offset" xml:"offset"`
-	Limit  uint      `json:"limit" xml:"limit"`
-	Tags   []Tag     `json:"tags" xml:"tags"`
+	Start  Date      `json:"realtime_start" xml:"realtime_start,attr"`
+	End    Date      `json:"realtime_end" xml:"realtime_end,attr"`
+	Order  OrderType `json:"order_by" xml:"order_by,attr"`
+	Sort   SortType  `json:"sort_order" xml:"sort_order,attr"`
+	Count  uint      `json:"count" xml:"count,attr"`
+	Offset uint      `json:"offset" xml:"offset,attr"`
+	Limit  uint      `json:"limit" xml:"limit,attr"`
+	Tags   []Tag     `json:"tags" xml:"tags,attr"`
 }
 
 func (c Client) SeriesTags(req SeriesTagsRequest) (SeriesTagsResponse, Error) {
@@ -489,15 +491,15 @@ func NewSeriesUpdatesRequest(filter FilterType) SeriesUpdatesRequest {
 }
 
 type SeriesUpdatesResponse struct {
-	Start          Date       `json:"realtime_start" xml:"realtime_start"`
-	End            Date       `json:"realtime_end" xml:"realtime_end"`
-	FilterVariable string     `json:"filter_variable" xml:"filter_variable"`
-	Filter         FilterType `json:"filter_value" xml:"filter_value"`
-	Order          OrderType  `json:"order_by" xml:"order_by"`
-	Sort           SortType   `json:"sort_order" xml:"sort_order"`
-	Count          uint       `json:"count" xml:"count"`
-	Offset         uint       `json:"offset" xml:"offset"`
-	Limit          uint       `json:"limit" xml:"limit"`
+	Start          Date       `json:"realtime_start" xml:"realtime_start,attr"`
+	End            Date       `json:"realtime_end" xml:"realtime_end,attr"`
+	FilterVariable string     `json:"filter_variable" xml:"filter_variable,attr"`
+	Filter         FilterType `json:"filter_value" xml:"filter_value,attr"`
+	Order          OrderType  `json:"order_by" xml:"order_by,attr"`
+	Sort           SortType   `json:"sort_order" xml:"sort_order,attr"`
+	Count          uint       `json:"count" xml:"count,attr"`
+	Offset         uint       `json:"offset" xml:"offset,attr"`
+	Limit          uint       `json:"limit" xml:"limit,attr"`
 	Series         []Series   `json:"seriess" xml:"seriess"`
 }
 

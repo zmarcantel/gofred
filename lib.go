@@ -203,29 +203,50 @@ const (
 	Unadjusted SeasonalAdjustment = false
 )
 
+func ParseSeasonalAdjustment(str string) (SeasonalAdjustment, error) {
+	switch str {
+	case "Not Seasonally Adjusted":
+		return Unadjusted, nil
+
+	case "Seasonally Adjusted":
+		return Adjusted, nil
+	case "Seasonally Adjusted Annual Rate":
+		return Adjusted, nil
+	}
+
+	return Unadjusted, fmt.Errorf("unknown seasonal adjustment string: %s", str)
+}
+
+func (a SeasonalAdjustment) String() string {
+	if a {
+		return "\"Seasonally Adjusted\""
+	}
+
+	return "\"Not Seasonally Adjusted\""
+}
+
 func (a *SeasonalAdjustment) UnmarshalJSON(input []byte) error {
 	var as_str string
-	if err := json.Unmarshal(input, &as_str); err != nil {
+	err := json.Unmarshal(input, &as_str)
+	if err != nil {
 		return err
 	}
 
-	if as_str == "Not Seasonally Adjusted" {
-		*a = Unadjusted
-	} else if as_str == "Seasonally Adjusted" || as_str == "Seasonally Adjusted Annual Rate" {
-		*a = Adjusted
-	} else {
-		return fmt.Errorf("unexpected value for seasonal adjustment: %s", as_str)
-	}
+	*a, err = ParseSeasonalAdjustment(as_str)
 
-	return nil
+	return err
 }
 
 func (a SeasonalAdjustment) MarshalJSON() ([]byte, error) {
-	if a {
-		return []byte("\"Seasonally Adjusted\""), nil
-	}
-
-	return []byte("\"Not Seasonally Adjusted\""), nil
+	return []byte(a.String()), nil
+}
+func (a *SeasonalAdjustment) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	return d.DecodeElement(a, &start)
+}
+func (a *SeasonalAdjustment) UnmarshalXMLAttr(attr xml.Attr) error {
+	var err error
+	*a, err = ParseSeasonalAdjustment(attr.Value)
+	return err
 }
 
 type Date time.Time
@@ -246,6 +267,12 @@ func (d Date) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.Time(d).Format(DATE_FORMAT))
 }
 
+func (d *Date) UnmarshalXMLAttr(attr xml.Attr) error {
+	as_time, err := time.Parse(DATE_FORMAT, attr.Value)
+	*d = Date(as_time)
+	return err
+}
+
 type DateTime time.Time
 
 func (d *DateTime) UnmarshalJSON(input []byte) error {
@@ -261,6 +288,12 @@ func (d *DateTime) UnmarshalJSON(input []byte) error {
 
 func (d DateTime) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.Time(d).Format(TIME_FORMAT))
+}
+
+func (d *DateTime) UnmarshalXMLAttr(attr xml.Attr) error {
+	as_time, err := time.Parse(TIME_FORMAT, attr.Value)
+	*d = DateTime(as_time)
+	return err
 }
 
 type Frequency uint8
@@ -287,61 +320,70 @@ const (
 	UnknownFrequency
 )
 
+func FrequencyFromString(str string) (Frequency, error) {
+	switch str {
+	case "d", "Daily", "Daily, 7-Day":
+		return Daily, nil
+	case "w", "Weekly":
+		return Weekly, nil
+	case "bw", "Biweekly":
+		return Biweekly, nil
+	case "m", "Monthly":
+		return Monthly, nil
+	case "q", "Quarterly":
+		return Quarterly, nil
+	case "sa", "Semiannual":
+		return Semiannual, nil
+	case "a", "Annual":
+		return Annual, nil
+
+	case "wef", "Weekly, Ending Friday":
+		return WeeklyEndingFriday, nil
+	case "weth", "Weekly, Ending Thursday":
+		return WeeklyEndingThursday, nil
+	case "wew", "Weekly, Ending Wednesday":
+		return WeeklyEndingWednesday, nil
+	case "wetu", "Weekly, Ending Tuesday":
+		return WeeklyEndingTuesday, nil
+	case "wem", "Weekly, Ending Monday":
+		return WeeklyEndingMonday, nil
+	case "wesu", "Weekly, Ending Sunday":
+		return WeeklyEndingSunday, nil
+	case "wesa", "Weekly, Ending Saturday":
+		return WeeklyEndingSaturday, nil
+	case "bwew", "Biweekly, Ending Wednesday":
+		return BiweeklyEndingWednesday, nil
+	case "bwem", "Biweekly, Ending Monday":
+		return BiweeklyEndingMonday, nil
+
+	case "Not Applicable":
+		return UnknownFrequency, nil
+	}
+
+	return UnknownFrequency, fmt.Errorf("unknown frequency format: %s", str)
+}
+
 func (f *Frequency) UnmarshalJSON(input []byte) error {
 	*f = UnknownFrequency
 
 	var as_str string
-	if err := json.Unmarshal(input, &as_str); err != nil {
+	err := json.Unmarshal(input, &as_str)
+	if err != nil {
 		return err
 	}
 
-	switch as_str {
-	case "d", "Daily":
-		*f = Daily
-	case "w", "Weekly":
-		*f = Weekly
-	case "bw", "Biweekly":
-		*f = Biweekly
-	case "m", "Monthly":
-		*f = Monthly
-	case "q", "Quarterly":
-		*f = Quarterly
-	case "sa", "Semiannual":
-		*f = Semiannual
-	case "a", "Annual":
-		*f = Annual
-
-	case "wef", "Weekly, Ending Friday":
-		*f = WeeklyEndingFriday
-	case "weth", "Weekly, Ending Thursday":
-		*f = WeeklyEndingThursday
-	case "wew", "Weekly, Ending Wednesday":
-		*f = WeeklyEndingWednesday
-	case "wetu", "Weekly, Ending Tuesday":
-		*f = WeeklyEndingTuesday
-	case "wem", "Weekly, Ending Monday":
-		*f = WeeklyEndingMonday
-	case "wesu", "Weekly, Ending Sunday":
-		*f = WeeklyEndingSunday
-	case "wesa", "Weekly, Ending Saturday":
-		*f = WeeklyEndingSaturday
-	case "bwew", "Biweekly, Ending Wednesday":
-		*f = BiweeklyEndingWednesday
-	case "bwem", "Biweekly, Ending Monday":
-		*f = BiweeklyEndingMonday
-
-	case "Not Applicable":
-		*f = UnknownFrequency
-
-	default:
-		return fmt.Errorf("unknown frequency format: %s", as_str)
-	}
-
-	return nil
+	*f, err = FrequencyFromString(as_str)
+	return err
 }
 
 func (f Frequency) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%s\"", f.LongString())), nil
+}
+
+func (f *Frequency) UnmarshalXMLAttr(attr xml.Attr) error {
+	var err error
+	*f, err = FrequencyFromString(attr.Value)
+	return err
 }
 
 func (f Frequency) String() string {
@@ -508,36 +550,46 @@ const (
 	TagSource             TagId = "Source"
 )
 
+func TagIdFromString(str string) TagId {
+	switch str {
+	case "freq":
+		return TagFrequency
+	case "gen":
+		return TagGeneral
+	case "geo":
+		return TagGeography
+	case "geot":
+		return TagGeographyType
+	case "rls":
+		return TagRelease
+	case "seas":
+		return TagSeasonalAdjustment
+	case "src":
+		return TagSource
+	}
+
+	return TagNone
+}
+
 func (t *TagId) UnmarshalJSON(input []byte) error {
 	var as_str string
 	if err := json.Unmarshal(input, &as_str); err != nil {
 		return err
 	}
 
-	*t = TagNone
-
-	switch as_str {
-	case "freq":
-		*t = TagFrequency
-	case "gen":
-		*t = TagGeneral
-	case "geo":
-		*t = TagGeography
-	case "geot":
-		*t = TagGeographyType
-	case "rls":
-		*t = TagRelease
-	case "seas":
-		*t = TagSeasonalAdjustment
-	case "src":
-		*t = TagSource
-	}
+	*t = TagIdFromString(as_str)
 
 	if *t == TagNone {
 		return fmt.Errorf("unknown tag id '%s'", as_str)
 	}
 	return nil
 }
+
+func (t *TagId) UnmarshalXMLAttr(attr xml.Attr) error {
+	*t = TagIdFromString(attr.Value)
+	return nil
+}
+
 func (t TagId) String() string {
 	switch t {
 	case TagFrequency:
@@ -604,6 +656,31 @@ func (u UnitType) String() string {
 	return "unknwon unit"
 }
 
+func UnitTypeFromString(str string) (UnitType, error) {
+	switch str {
+	case "lin":
+		return UnitLinear, nil
+	case "chg":
+		return UnitChange, nil
+	case "ch1":
+		return UnitChangeFromYearAgo, nil
+	case "pch":
+		return UnitPercentChange, nil
+	case "pc1":
+		return UnitPercentChangeFromYearAgo, nil
+	case "pca":
+		return UnitCompoundedAnnualRateOfChange, nil
+	case "cch":
+		return UnitContinuouslyCompoundedRateOfChange, nil
+	case "cca":
+		return UnitContinuouslyCompoundedAnnualRateOfChange, nil
+	case "log":
+		return UnitNaturalLog, nil
+	}
+
+	return UnitLinear, fmt.Errorf("unknown unit: %s", str)
+}
+
 func (u *UnitType) UnmarshalJSON(input []byte) error {
 	var as_str string
 	err := json.Unmarshal(input, &as_str)
@@ -611,30 +688,14 @@ func (u *UnitType) UnmarshalJSON(input []byte) error {
 		return err
 	}
 
-	switch as_str {
-	case "lin":
-		*u = UnitLinear
-	case "chg":
-		*u = UnitChange
-	case "ch1":
-		*u = UnitChangeFromYearAgo
-	case "pch":
-		*u = UnitPercentChange
-	case "pc1":
-		*u = UnitPercentChangeFromYearAgo
-	case "pca":
-		*u = UnitCompoundedAnnualRateOfChange
-	case "cch":
-		*u = UnitContinuouslyCompoundedRateOfChange
-	case "cca":
-		*u = UnitContinuouslyCompoundedAnnualRateOfChange
-	case "log":
-		*u = UnitNaturalLog
-	default:
-		return fmt.Errorf("unknown unit: %s", as_str)
-	}
+	*u, err = UnitTypeFromString(as_str)
+	return err
+}
 
-	return nil
+func (u *UnitType) UnmarshalXMLAttr(attr xml.Attr) error {
+	var err error
+	*u, err = UnitTypeFromString(attr.Value)
+	return err
 }
 
 func (u UnitType) MarshalJSON() ([]byte, error) {

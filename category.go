@@ -1,15 +1,16 @@
 package gofred
 
 import (
+	"encoding/xml"
 	"fmt"
 	"net/url"
 	"time"
 )
 
 type Category struct {
-	Id       uint   `json:"id" xml:"id"`
-	Name     string `json:"name" xml:"name"`
-	ParentId uint   `json:"parent_id" xml:"parent_id"`
+	Id       uint   `json:"id" xml:"id,attr"`
+	Name     string `json:"name" xml:"name,attr"`
+	ParentId uint   `json:"parent_id" xml:"parent_id,attr"`
 }
 
 //==============================================================================
@@ -33,7 +34,8 @@ func (r categoryRequest) ToParams() url.Values {
 
 // Response type which _should_ contain only one category.
 type categoryResponse struct {
-	Categories []Category `json:"categories" xml:"categories"`
+	Categories []Category `json:"categories" xml:"category"`
+	xmlName    xml.Name   `xml:"categories"`
 }
 
 //
@@ -105,7 +107,8 @@ func (r categoryChildrenRequest) ToParams() url.Values {
 //
 // For getter function, only the array is returned.
 type categoryChildrenResponse struct {
-	Categories []Category `json:"categories" xml:"categories"`
+	Categories []Category `json:"categories" xml:"category"`
+	xmlName    xml.Name   `xml:"categories"`
 }
 
 //
@@ -161,7 +164,8 @@ func (r categoryRelatedRequest) ToParams() url.Values {
 //
 // For getter function, only the array is returned.
 type categoryRelatedResponse struct {
-	Categories []Category `json:"categories" xml:"categories"`
+	Categories []Category `json:"categories" xml:"category"`
+	xmlName    xml.Name   `xml:"categories"`
 }
 
 //
@@ -230,14 +234,15 @@ func (r CategorySeriesRequest) ToParams() url.Values {
 }
 
 type CategorySeriesResponse struct {
-	Start  Date      `json:"realtime_start" xml:"realtime_start"` // "2013-08-13",
-	End    Date      `json:"realtime_end" xml:"realtime_end"`     // "2013-08-13",
-	Order  OrderType `json:"order_by" xml:"order_by"`
-	Sort   SortType  `json:"sort_order" xml:"sort_order"`
-	Count  uint      `json:"count" xml:"count"`
-	Offset uint      `json:"offset" xml:"offset"`
-	Limit  uint      `json:"limit" xml:"limit"`
-	Series []Series  `json:"seriess" xml:"seriess"` // TODO: example has seriess, is typo?
+	Start   Date      `json:"realtime_start" xml:"realtime_start,attr"`
+	End     Date      `json:"realtime_end" xml:"realtime_end,attr"`
+	Order   OrderType `json:"order_by" xml:"order_by,attr"`
+	Sort    SortType  `json:"sort_order" xml:"sort_order,attr"`
+	Count   uint      `json:"count" xml:"count,attr"`
+	Offset  uint      `json:"offset" xml:"offset,attr"`
+	Limit   uint      `json:"limit" xml:"limit,attr"`
+	Series  []Series  `json:"seriess" xml:"series"`
+	xmlName xml.Name  `xml:"seriess"`
 }
 
 //
@@ -306,14 +311,15 @@ func (r CategoryTagsRequest) ToParams() url.Values {
 }
 
 type CategoryTagsResponse struct {
-	Start  Date      `json:"realtime_start" xml:"realtime_start"`
-	End    Date      `json:"realtime_end" xml:"realtime_end"`
-	Order  OrderType `json:"order_by" xml:"order_by"`
-	Sort   SortType  `json:"sort_order" xml:"sort_order"`
-	Count  uint      `json:"count" xml:"count"`
-	Offset uint      `json:"offset" xml:"offset"`
-	Limit  uint      `json:"limit" xml:"limit"`
-	Tags   []Tag     `json:"tags" xml:"tags"`
+	Start   Date      `json:"realtime_start" xml:"realtime_start,attr"`
+	End     Date      `json:"realtime_end" xml:"realtime_end,attr"`
+	Order   OrderType `json:"order_by" xml:"order_by,attr"`
+	Sort    SortType  `json:"sort_order" xml:"sort_order,attr"`
+	Count   uint      `json:"count" xml:"count,attr"`
+	Offset  uint      `json:"offset" xml:"offset,attr"`
+	Limit   uint      `json:"limit" xml:"limit,attr"`
+	Tags    []Tag     `json:"tags" xml:"tag"`
+	xmlName xml.Name  `xml:"tags"`
 }
 
 //
@@ -385,14 +391,15 @@ func (r CategoryRelatedTagsRequest) ToParams() url.Values {
 }
 
 type CategoryRelatedTagsResponse struct {
-	Start  Date      `json:"realtime_start" xml:"realtime_start"`
-	End    Date      `json:"realtime_end" xml:"realtime_end"`
-	Order  OrderType `json:"order_by" xml:"order_by"`
-	Sort   SortType  `json:"sort_order" xml:"sort_order"`
-	Count  uint      `json:"count" xml:"count"`
-	Offset uint      `json:"offset" xml:"offset"`
-	Limit  uint      `json:"limit" xml:"limit"`
-	Tags   []Tag     `json:"tags" xml:"tags"`
+	Start   Date      `json:"realtime_start" xml:"realtime_start,attr"`
+	End     Date      `json:"realtime_end" xml:"realtime_end,attr"`
+	Order   OrderType `json:"order_by" xml:"order_by,attr"`
+	Sort    SortType  `json:"sort_order" xml:"sort_order,attr"`
+	Count   uint      `json:"count" xml:"count,attr"`
+	Offset  uint      `json:"offset" xml:"offset,attr"`
+	Limit   uint      `json:"limit" xml:"limit,attr"`
+	Tags    []Tag     `json:"tags" xml:"tag"`
+	xmlName xml.Name  `xml:"tags"`
 }
 
 //
