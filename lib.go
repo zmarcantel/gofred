@@ -322,15 +322,16 @@ const (
 
 func FrequencyFromString(str string) (Frequency, error) {
 	switch str {
-	case "d", "Daily", "Daily, 7-Day":
+	case "d", "Daily", "Daily, 7-Day",
+		"Daily, Close":
 		return Daily, nil
 	case "w", "Weekly":
 		return Weekly, nil
 	case "bw", "Biweekly":
 		return Biweekly, nil
-	case "m", "Monthly":
+	case "m", "Monthly", "Monthly, End of Month":
 		return Monthly, nil
-	case "q", "Quarterly", "Quarterly, End of Quarter":
+	case "q", "Quarterly", "Quarterly, End of Quarter", "Quarterly, End of Period":
 		return Quarterly, nil
 	case "sa", "Semiannual":
 		return Semiannual, nil
@@ -468,9 +469,11 @@ func (f Frequency) LongString() string {
 type DataPoint struct {
 	Date  Date    `json:"date" xml:"date"`
 	Value float64 `json:"value" xml:"value"`
+	Valid bool
 }
 
 func (d *DataPoint) UnmarshalJSON(input []byte) error {
+	d.Valid = false
 	var as_map map[string]string
 	if err := json.Unmarshal(input, &as_map); err != nil {
 		return err
@@ -485,6 +488,9 @@ func (d *DataPoint) UnmarshalJSON(input []byte) error {
 	if !exists {
 		return fmt.Errorf("no value in datapoint")
 	}
+	if value == "." {
+		return nil // TODO: can we sentinel with error rather than filtering
+	}
 
 	as_time, err := time.Parse(DATE_FORMAT, date)
 	if err != nil {
@@ -494,8 +500,11 @@ func (d *DataPoint) UnmarshalJSON(input []byte) error {
 
 	d.Value, err = strconv.ParseFloat(value, 64)
 	if err != nil {
+		fmt.Println(string(input))
 		return fmt.Errorf("could not parse '%s': %v", value, err)
 	}
+
+	d.Valid = true
 	return nil
 }
 
