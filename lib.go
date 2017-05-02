@@ -330,11 +330,12 @@ func FrequencyFromString(str string) (Frequency, error) {
 		return Biweekly, nil
 	case "m", "Monthly":
 		return Monthly, nil
-	case "q", "Quarterly":
+	case "q", "Quarterly", "Quarterly, End of Quarter":
 		return Quarterly, nil
 	case "sa", "Semiannual":
 		return Semiannual, nil
-	case "a", "Annual":
+	case "a", "Annual",
+		"Annual, Fiscal Year", "Annual, As of February", "Annual, End of Year":
 		return Annual, nil
 
 	case "wef", "Weekly, Ending Friday":
@@ -492,7 +493,10 @@ func (d *DataPoint) UnmarshalJSON(input []byte) error {
 	d.Date = Date(as_time)
 
 	d.Value, err = strconv.ParseFloat(value, 64)
-	return err
+	if err != nil {
+		return fmt.Errorf("could not parse '%s': %v", value, err)
+	}
+	return nil
 }
 
 // ordering
