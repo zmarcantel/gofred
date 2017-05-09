@@ -336,7 +336,8 @@ func FrequencyFromString(str string) (Frequency, error) {
 	case "sa", "Semiannual":
 		return Semiannual, nil
 	case "a", "Annual",
-		"Annual, Fiscal Year", "Annual, As of February", "Annual, End of Year":
+		"Annual, Fiscal Year", "Annual, As of February", "Annual, End of Year",
+		"Annual, As of July 1":
 		return Annual, nil
 
 	case "wef", "Weekly, Ending Friday":
